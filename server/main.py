@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from models import get_model
+from base64 import b64encode, b64decode
 
 
 app = FastAPI()
@@ -34,13 +35,13 @@ class ModelName(str, Enum):
 
 
 class CKKSVector(BaseModel):
-    ckks_vector: bytes = Field(
+    ckks_vector: str = Field(
         ..., description="Serialized CKKSVector representing the input to the model"
     )
 
 
 class CKKSVectorWithContext(CKKSVector):
-    context: bytes = Field(
+    context: str = Field(
         ...,
         description="Serialized TenSEALContext containing the keys needed for the evaluation",
     )
@@ -60,14 +61,17 @@ async def evaluation(
 
     try:
         model = get_model(model_name, version)
-    except Exception:
+    except KeyError as ke:
         # bad input no model with this name or version
-        pass
+        return JSONResponse(
+            status_code=418, content={"message": f"Oops! Server says '{ke.__str__()}'"},
+        )
 
     try:
-        encrypted_x = model.deserialize_input(data.context, data.ckks_vector)
+        context = b64decode(data.context)
+        ckks_vector = b64decode(data.ckks_vector)
+        encrypted_x = model.deserialize_input(context, ckks_vector)
         encrypted_out = model(encrypted_x)
-        # serialize output
     # models should raise RuntimeError when something is wrong about
     # deserialization as well
     except RuntimeError as re:
@@ -78,7 +82,10 @@ async def evaluation(
         )
 
     return {
-        "model_name": model_name,
-        "model_version": version,
-        "out": encrypted_out,
+        "out": b64encode(encrypted_out.serialize()).decode(),
     }
+
+
+# TODO:
+# - route /models/: list available models with reasonable description
+# - route /model/{model_name}/: describe deeply the model with listing of available versions
