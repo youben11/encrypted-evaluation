@@ -54,10 +54,12 @@ class CKKSVectorWithContext(CKKSVector):
 
 
 # @app.post("/eval/{model_name}", response_model=CKKSVector)
-@app.post("/eval/{model_name}", response_description="encrypted output of the model")
-async def evaluation(
-    data: CKKSVectorWithContext, model_name: str, version: str = None
-):
+@app.post(
+    "/eval/{model_name}",
+    response_model=CKKSVector,
+    response_description="encrypted output of the model",
+)
+async def evaluation(data: CKKSVectorWithContext, model_name: str, version: str = None):
     """
     Evaluate encrypted input data using the model `model_name` (optionally using a specific `version`)
 
@@ -98,9 +100,7 @@ async def evaluation(
             status_code=418, content={"message": f"Oops! Server says '{str(de)}'"},
         )
 
-    return {
-        "out": b64encode(encrypted_out.serialize()).decode(),
-    }
+    return {"ckks_vector": b64encode(encrypted_out.serialize())}
 
 
 # TODO:
