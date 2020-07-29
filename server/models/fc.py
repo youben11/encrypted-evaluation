@@ -2,6 +2,7 @@
 
 import tenseal as ts
 from models.abstract_model import Model
+from models.exceptions import DeserializationError, EvaluationError
 
 
 class FC(Model):
@@ -21,14 +22,17 @@ class FC(Model):
             out.square_()
             out = out.mm(self.w3) + self.b3
         except Exception as e:
-            raise RuntimeError(f"{e.__class__.__name__}: {str(e)}")
+            raise EvaluationError(f"{e.__class__.__name__}: {str(e)}")
         return out
 
     @staticmethod
     def deserialize_input(context: bytes, ckks_vector: bytes) -> ts._ts_cpp.CKKSVector:
-        # TODO: check parameters or size and raise RuntimeError when needed
-        ctx = ts.context_from(context)
-        # check parameters if good for model evaluation or raise an error
-        enc_x = ts.ckks_vector_from(ctx, ckks_vector)
-        # maybe check size here
+        # TODO: check parameters or size and raise InvalidParameters when needed
+        try:
+            ctx = ts.context_from(context)
+            enc_x = ts.ckks_vector_from(ctx, ckks_vector)
+        except:
+            raise DeserializationError(
+                "cannot deserialize context or ckks_vector"
+            )
         return enc_x

@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from models import get_model
+from models.exceptions import *
 from base64 import b64encode, b64decode
 
 
@@ -71,9 +72,9 @@ async def evaluation(
     # fetch model
     try:
         model = get_model(model_name, version)
-    except ValueError as ve:
+    except ModelNotFound as mnf:
         return JSONResponse(
-            status_code=418, content={"message": f"Oops! Server says '{str(ve)}'"},
+            status_code=418, content={"message": f"Oops! Server says '{str(mnf)}'"},
         )
     except:
         raise HTTPException(status_code=500)
@@ -92,9 +93,13 @@ async def evaluation(
     try:
         encrypted_x = model.deserialize_input(context, ckks_vector)
         encrypted_out = model(encrypted_x)
-    except RuntimeError as re:
+    except EvaluationError as ee:
         return JSONResponse(
-            status_code=418, content={"message": f"Oops! Server says '{str(re)}'"},
+            status_code=418, content={"message": f"Oops! Server says '{str(ee)}'"},
+        )
+    except DeserializationError as de:
+        return JSONResponse(
+            status_code=418, content={"message": f"Oops! Server says '{str(de)}'"},
         )
 
     return {

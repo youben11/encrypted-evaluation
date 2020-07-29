@@ -20,7 +20,7 @@ class Model(ABC):
             tenseal.CKKSVector: the evaluation output
 
         Raises:
-            RuntimeError: if an issue arises during evaluation
+            EvaluationError: if an issue arises during evaluation
         """
         pass
 
@@ -36,7 +36,7 @@ class Model(ABC):
             tenseal.CKKSVector: model input
 
         Raises:
-            RuntimeError: if the parameter aren't appropriate for the model evaluation
+            DeserializationError: if the parameter aren't appropriate for the model evaluation
         """
         pass
 

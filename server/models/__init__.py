@@ -4,6 +4,7 @@ import pickle
 from collections import namedtuple
 from models.fc import FC
 from models.abstract_model import Model
+from models.exceptions import ModelNotFound
 
 
 _DATA_PATH = "data"
@@ -58,16 +59,16 @@ def get_model(model_name: str, version: str = None) -> Model:
         Model: loaded model
 
     Raises:
-        ValuesError: if the `model_name` or `version` are incorrect
+        ModelNotFound: if the `model_name` or `version` are incorrect
     """
 
     # check if (model_name, version) is available
     if model_name not in _MODEL_DEFS.keys():
-        raise ValueError(f"Model `{model_name}` can't be found in this server")
+        raise ModelNotFound(f"Model `{model_name}` can't be found in this server")
     if version is None:
         version = _MODEL_DEFS[model_name].default_version
     elif version not in _MODEL_DEFS[model_name].versions:
-        raise ValueError(f"Model `{model_name}` doesn't have version `{version}`")
+        raise ModelNotFound(f"Model `{model_name}` doesn't have version `{version}`")
 
     # lazy loading of models
     if _MODELS[model_name][version] is None:
