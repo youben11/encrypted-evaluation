@@ -7,26 +7,35 @@ from models import get_model
 from base64 import b64encode, b64decode
 
 
+BENCHMARK = True
+CORS = True
+
+
 app = FastAPI()
 
-# middleware to record process time
-# from fastapi import Request
-# @app.middleware("http")
-# async def add_process_time_header(request: Request, call_next):
-#     start_time = time.time()
-#     response = await call_next(request)
-#     process_time = time.time() - start_time
-#     response.headers["X-Process-Time"] = str(process_time)
-#     return response
+if BENCHMARK:
+    from fastapi import Request
+    import time
 
-# enable any origin for CORS
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],
-#     allow_credentials=False,
-#     allow_methods=["POST"],
-#     allow_headers=["*"],
-# )
+    @app.middleware("http")
+    async def add_process_time_header(request: Request, call_next):
+        tick = time.time()
+        response = await call_next(request)
+        tock = time.time()
+        process_time = tock - tick
+        print(f"Calling {request.url} took {process_time} seconds")
+        response.headers["X-Process-Time"] = str(process_time)
+        return response
+
+
+if CORS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["POST"],
+        allow_headers=["*"],
+    )
 
 
 class ModelName(str, Enum):
