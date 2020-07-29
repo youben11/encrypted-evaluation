@@ -20,7 +20,7 @@ class Model(ABC):
             tenseal.CKKSVector: the evaluation output
 
         Raises:
-            RuntimeError, if an issue arises during evaluation
+            RuntimeError: if an issue arises during evaluation
         """
         pass
 

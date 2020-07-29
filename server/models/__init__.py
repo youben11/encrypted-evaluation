@@ -40,8 +40,10 @@ def _load_parameters(model_name: str, version: str) -> dict:
     )
     try:
         parameters = pickle.load(open(file_path, "rb"))
-    except OSError:
-        raise RuntimeError(f"Internal error: {file_path} should exist!")
+    except OSError as ose:
+        # TODO: log this information
+        # raise RuntimeError(f"Internal error: {file_path} should exist!")
+        raise ose
     return parameters
 
 
@@ -61,11 +63,11 @@ def get_model(model_name: str, version: str = None) -> Model:
 
     # check if (model_name, version) is available
     if model_name not in _MODEL_DEFS.keys():
-        raise ValueError(f"Model '{model_name}' can't be found in this server")
+        raise ValueError(f"Model `{model_name}` can't be found in this server")
     if version is None:
         version = _MODEL_DEFS[model_name].default_version
     elif version not in _MODEL_DEFS[model_name].versions:
-        raise ValueError(f"Model '{model_name}' doesn't have version '{version}'")
+        raise ValueError(f"Model `{model_name}` doesn't have version `{version}`")
 
     # lazy loading of models
     if _MODELS[model_name][version] is None:

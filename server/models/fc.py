@@ -14,18 +14,19 @@ class FC(Model):
         self.b3 = parameters["b3"]
 
     def forward(self, enc_x: ts._ts_cpp.CKKSVector) -> ts._ts_cpp.CKKSVector:
-        out = enc_x.matmul(self.w1)
-        out += self.b1
-        out.square_()
-        out @= self.w2
-        out += self.b2
-        out.square_()
-        out @= self.w3
-        out += self.b3
+        try:
+            out = enc_x.mm(self.w1) + self.b1
+            out.square_()
+            out = out.mm(self.w2) + self.b2
+            out.square_()
+            out = out.mm(self.w3) + self.b3
+        except Exception as e:
+            raise RuntimeError(f"{e.__class__.__name__}: {str(e)}")
         return out
 
     @staticmethod
     def deserialize_input(context: bytes, ckks_vector: bytes) -> ts._ts_cpp.CKKSVector:
+        # TODO: check parameters or size and raise RuntimeError when needed
         ctx = ts.context_from(context)
         # check parameters if good for model evaluation or raise an error
         enc_x = ts.ckks_vector_from(ctx, ckks_vector)

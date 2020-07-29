@@ -68,26 +68,33 @@ async def evaluation(
     - **context**: a serialized TenSEALContext containing the keys needed for the evaluation
     """
 
+    # fetch model
     try:
         model = get_model(model_name, version)
-    except KeyError as ke:
-        # bad input no model with this name or version
+    except ValueError as ve:
         return JSONResponse(
-            status_code=418, content={"message": f"Oops! Server says '{ke.__str__()}'"},
+            status_code=418, content={"message": f"Oops! Server says '{str(ve)}'"},
         )
+    except:
+        raise HTTPException(status_code=500)
 
+    # decode data from client
     try:
         context = b64decode(data.context)
         ckks_vector = b64decode(data.ckks_vector)
+    except:
+        return JSONResponse(
+            status_code=418,
+            content={"message": f"Oops! Server says 'bad base64 strings'"},
+        )
+
+    # deserialize input and do the evaluation
+    try:
         encrypted_x = model.deserialize_input(context, ckks_vector)
         encrypted_out = model(encrypted_x)
-    # models should raise RuntimeError when something is wrong about
-    # deserialization as well
     except RuntimeError as re:
-        # raise HTTPException(status_code=400, detail=re.__str__())
-        # handle it with a beautiful error message
         return JSONResponse(
-            status_code=418, content={"message": f"Oops! Server says '{re.__str__()}'"},
+            status_code=418, content={"message": f"Oops! Server says '{str(re)}'"},
         )
 
     return {
