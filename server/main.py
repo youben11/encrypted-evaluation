@@ -1,7 +1,6 @@
 from enum import Enum
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from models import get_model
 from models.exceptions import *
@@ -30,6 +29,8 @@ if BENCHMARK:
 
 
 if CORS:
+    from fastapi.middleware.cors import CORSMiddleware
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -37,11 +38,6 @@ if CORS:
         allow_methods=["POST"],
         allow_headers=["*"],
     )
-
-
-class ModelName(str, Enum):
-    conv = "conv"
-    fc = "fc"
 
 
 class CKKSVector(BaseModel):
@@ -60,7 +56,7 @@ class CKKSVectorWithContext(CKKSVector):
 # @app.post("/eval/{model_name}", response_model=CKKSVector)
 @app.post("/eval/{model_name}", response_description="encrypted output of the model")
 async def evaluation(
-    data: CKKSVectorWithContext, model_name: ModelName, version: str = None
+    data: CKKSVectorWithContext, model_name: str, version: str = None
 ):
     """
     Evaluate encrypted input data using the model `model_name` (optionally using a specific `version`)
