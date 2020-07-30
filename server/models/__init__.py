@@ -1,5 +1,6 @@
 """Define models to process encrypted data"""
 import os
+import logging
 import pickle
 from collections import namedtuple
 from models.fc import FC
@@ -42,8 +43,9 @@ def _load_parameters(model_name: str, version: str) -> dict:
     try:
         parameters = pickle.load(open(file_path, "rb"))
     except OSError as ose:
-        # TODO: log this information
-        # raise RuntimeError(f"Internal error: {file_path} should exist!")
+        logging.error(
+            f"Parameters file `{file_path}` not found for model `{model_name}`, version {version}"
+        )
         raise ose
     return parameters
 

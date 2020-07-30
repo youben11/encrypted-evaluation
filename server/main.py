@@ -53,7 +53,7 @@ class CKKSVectorWithContext(CKKSVector):
     )
 
 
-# @app.post("/eval/{model_name}", response_model=CKKSVector)
+# TODO: use data (files?) instead of json to not have the need to base64
 @app.post(
     "/eval/{model_name}",
     response_model=CKKSVector,
