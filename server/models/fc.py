@@ -6,7 +6,12 @@ from models.exceptions import DeserializationError, EvaluationError
 
 
 class FC(Model):
-    """
+    """Neural netowrk with 3 Linear layers followed by a square activation function,
+    the last linear layer doesn't apply an activation function.
+
+    input -> [LinearLayer -> square] -> [LinearLayer -> square] -> [LinearLayer] -> output
+
+    The input should be encrypted as a tenseal.CKKSVector, the output will as well be encrypted.
     """
 
     def __init__(self, parameters):
