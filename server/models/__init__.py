@@ -2,6 +2,7 @@
 import os
 import logging
 import pickle
+from typing import List
 from collections import namedtuple
 from models.fc import FC
 from models.abstract_model import Model
@@ -78,3 +79,34 @@ def get_model(model_name: str, version: str = None) -> Model:
         _MODELS[model_name][version] = _MODEL_DEFS[model_name].constructor(parameters)
 
     return _MODELS[model_name][version]
+
+
+def get_model_def(model_name: str) -> dict:
+    """Get descriptive attributes of model `model_name`.
+
+    Args:
+        model_name: the name of the model
+
+    Returns:
+        dict: containing descriptive model attributes
+
+    Raises:
+        ModelNotFound: if the model doesn't exist
+    """
+    try:
+        model_def = _MODEL_DEFS[model_name]
+    except KeyError:
+        raise ModelNotFound(f"Model `{model_name}` can't be found in this server")
+
+    return {
+        "model_name": model_name,
+        "description": model_def.constructor.__doc__,
+        "default_version": model_def.default_version,
+        "versions": model_def.versions,
+    }
+
+
+def get_all_model_def() -> List[dict]:
+    """Get the description of all the available model"""
+    model_defs = [get_model_def(model_name) for model_name in _MODEL_DEFS]
+    return model_defs

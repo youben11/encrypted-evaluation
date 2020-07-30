@@ -6,6 +6,9 @@ from models.exceptions import DeserializationError, EvaluationError
 
 
 class FC(Model):
+    """
+    """
+
     def __init__(self, parameters):
         self.w1 = parameters["w1"]
         self.b1 = parameters["b1"]
@@ -32,7 +35,5 @@ class FC(Model):
             ctx = ts.context_from(context)
             enc_x = ts.ckks_vector_from(ctx, ckks_vector)
         except:
-            raise DeserializationError(
-                "cannot deserialize context or ckks_vector"
-            )
+            raise DeserializationError("cannot deserialize context or ckks_vector")
         return enc_x

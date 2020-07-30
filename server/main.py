@@ -1,8 +1,9 @@
 from enum import Enum
+from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from models import get_model
+from models import get_model, get_all_model_def, get_model_def
 from models.exceptions import *
 from base64 import b64encode, b64decode
 
@@ -53,6 +54,42 @@ class CKKSVectorWithContext(CKKSVector):
     )
 
 
+class ModelDescription(BaseModel):
+    model_name: str = Field(
+        ..., description="Name of the model. Used to query an evaluation"
+    )
+    description: str = Field(
+        ...,
+        description="The description of the model architecture, as well the input that should be passed to it",
+    )
+    default_version: str = Field(
+        ..., description="The default version used during evaluation"
+    )
+    versions: List[str] = Field(..., description="Available versions of the model")
+
+
+def answer_418(msg: str):
+    return JSONResponse(
+        status_code=418, content={"message": f"Oops! Server says '{msg}'"},
+    )
+
+
+@app.get("/models/", response_model=List[ModelDescription])
+async def list_models():
+    """List available models with their description"""
+    return get_all_model_def()
+
+
+@app.get("/models/{model_name}", response_model=ModelDescription)
+async def describe_model(model_name: str):
+    """Describe model `model_name`"""
+    try:
+        model_def = get_model_def(model_name)
+    except ModelNotFound as mnf:
+        return answer_418(str(mnf))
+    return model_def
+
+
 # TODO: use data (files?) instead of json to not have the need to base64
 @app.post(
     "/eval/{model_name}",
@@ -71,9 +108,7 @@ async def evaluation(data: CKKSVectorWithContext, model_name: str, version: str 
     try:
         model = get_model(model_name, version)
     except ModelNotFound as mnf:
-        return JSONResponse(
-            status_code=418, content={"message": f"Oops! Server says '{str(mnf)}'"},
-        )
+        return answer_418(str(mnf))
     except:
         raise HTTPException(status_code=500)
 
@@ -82,27 +117,15 @@ async def evaluation(data: CKKSVectorWithContext, model_name: str, version: str 
         context = b64decode(data.context)
         ckks_vector = b64decode(data.ckks_vector)
     except:
-        return JSONResponse(
-            status_code=418,
-            content={"message": f"Oops! Server says 'bad base64 strings'"},
-        )
+        return answer_418("bad base64 strings")
 
     # deserialize input and do the evaluation
     try:
         encrypted_x = model.deserialize_input(context, ckks_vector)
         encrypted_out = model(encrypted_x)
     except EvaluationError as ee:
-        return JSONResponse(
-            status_code=418, content={"message": f"Oops! Server says '{str(ee)}'"},
-        )
+        return answer_418(str(ee))
     except DeserializationError as de:
-        return JSONResponse(
-            status_code=418, content={"message": f"Oops! Server says '{str(de)}'"},
-        )
+        return answer_418(str(de))
 
     return {"ckks_vector": b64encode(encrypted_out.serialize())}
-
-
-# TODO:
-# - route /models/: list available models with reasonable description
-# - route /model/{model_name}/: describe deeply the model with listing of available versions
