@@ -1,8 +1,8 @@
 """FC model"""
 
 import tenseal as ts
-from models.abstract_model import Model
-from models.exceptions import DeserializationError, EvaluationError
+from encrypted_evaluation.models.abstract_model import Model
+from encrypted_evaluation.models.exceptions import DeserializationError, EvaluationError
 
 
 class FC(Model):
