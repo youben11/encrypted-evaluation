@@ -129,3 +129,9 @@ async def evaluation(data: CKKSVectorWithContext, model_name: str, version: str 
         return answer_418(str(de))
 
     return {"ckks_vector": b64encode(encrypted_out.serialize())}
+
+
+@app.get("/ping")
+async def ping():
+    """Used to check if the API is up"""
+    return {"message": "pong"}
