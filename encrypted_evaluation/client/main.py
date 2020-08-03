@@ -2,6 +2,7 @@ from typing import List
 import tenseal as ts
 import typer
 from encrypted_evaluation.client import Client
+from encrypted_evaluation.client.exceptions import Answer418
 
 
 VERBOSE = False
@@ -49,9 +50,32 @@ def list_models(
         False, "--only-names", "-n", help="show only the model names"
     ),
 ):
+    """List models available"""
     client = Client(url)
     models = client.list_models()
-    print(models)
+    if len(models) == 0:
+        typer.echo("No model available!")
+        return
+
+    header = "============== Models =============="
+    footer = "===================================="
+    if only_names:
+        typer.echo(header)
+        typer.echo("")
+        for i, model in enumerate(models):
+            typer.echo(f"[{i + 1}] Model {model['model_name']}")
+        typer.echo("")
+        typer.echo(footer)
+    else:
+        typer.echo(header)
+        typer.echo("")
+        for i, model in enumerate(models):
+            typer.echo(f"[{i + 1}] Model {model['model_name']}:")
+            typer.echo(f"[*] Description: {model['description']}")
+            typer.echo(f"[*] Versions: {model['versions']}")
+            typer.echo(f"[*] Default version: {model['default_version']}")
+            typer.echo("")
+        typer.echo(footer)
 
 
 @app.command()
@@ -61,9 +85,19 @@ def model_info(
     ),
     model_name: str = typer.Argument(...),
 ):
+    """Get information about a specific model"""
     client = Client(url)
-    model_info = client.model_info(model_name)
-    print(model_info)
+    try:
+        model = client.model_info(model_name)
+    except Answer418 as e:
+        assert "can't be found" in str(e)
+        typer.echo(f"Model `{model_name}` doesn't exist", err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo(f"[+] Model {model['model_name']}:")
+    typer.echo(f"[*] Description: {model['description']}")
+    typer.echo(f"[*] Versions: {model['versions']}")
+    typer.echo(f"[*] Default version: {model['default_version']}")
 
 
 @app.command()

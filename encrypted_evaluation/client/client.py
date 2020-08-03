@@ -2,6 +2,7 @@ from typing import List
 import requests
 import tenseal as ts
 from base64 import b64encode, b64decode
+from encrypted_evaluation.client.exceptions import *
 
 
 class Client:
@@ -103,6 +104,6 @@ class Client:
         # TODO: better exceptions
         if response.status_code == 418:
             error_msg = response.json()["message"]
-            raise Exception(error_msg)
+            raise Answer418(error_msg)
         elif response.status_code == 500:
-            raise Exception("Server error")
+            raise ServerError("Server error")
