@@ -35,9 +35,15 @@ class Client:
         Returns:
             List[dict]: List of dictionaries, each one contains information about a specific model
                         hosted in the API
+
+        Raises:
+            ConnectionError: if a connection can't be established with the API
         """
         url = self._base_url + "/models/"
-        response = requests.get(url)
+        try:
+            response = requests.get(url)
+        except requests.exceptions.ConnectionError:
+            raise ConnectionError
         models = response.json()
         return models
 
@@ -51,10 +57,16 @@ class Client:
             dict: information about the model
 
         Raises:
-            Exception: if response.status_code isn't 200
+            ConnectionError: if a connection can't be established with the API
+            Answer418: if response.status_code is 418
+            ServerError: if response.status_code is 500
         """
         url = self._base_url + f"/models/{model_name}"
-        response = requests.get(url)
+        try:
+            response = requests.get(url)
+        except requests.exceptions.ConnectionError:
+            raise ConnectionError
+
         if response.status_code != 200:
             Client._handle_error_response(response)
 
@@ -78,7 +90,9 @@ class Client:
             tenseal.CKKSVector: encrypted output of the evaluation
 
         Raises:
-            Exception: if response.status_code isn't 200
+            ConnectionError: if a connection can't be established with the API
+            Answer418: if response.status_code is 418
+            ServerError: if response.status_code is 500
         """
 
         url = self._base_url + f"/eval/{model_name}"
@@ -90,7 +104,11 @@ class Client:
             "ckks_vector": b64encode(ser_vec).decode(),
         }
 
-        response = requests.post(url, json=data)
+        try:
+            response = requests.post(url, json=data)
+        except requests.exceptions.ConnectionError:
+            raise ConnectionError
+
         if response.status_code != 200:
             Client._handle_error_response(response)
 
@@ -101,7 +119,6 @@ class Client:
     @staticmethod
     def _handle_error_response(response: requests.Response):
         """Handle the responses that aren't a success (200)"""
-        # TODO: better exceptions
         if response.status_code == 418:
             error_msg = response.json()["message"]
             raise Answer418(error_msg)

@@ -28,6 +28,11 @@ def check_power_of_two(value: int):
         raise typer.BadParameter("Only powers of two greater than zero are allowed")
 
 
+def couldnt_connect(url):
+    typer.echo(f"Couldn't connect to '{url}'", err=True)
+    raise typer.Exit(code=1)
+
+
 @app.command()
 def ping(
     url: str = typer.Argument(..., help="base url of the API (e.g. 'http://myapi.com')")
@@ -52,7 +57,11 @@ def list_models(
 ):
     """List models available"""
     client = Client(url)
-    models = client.list_models()
+    try:
+        models = client.list_models()
+    except ConnectionError:
+        couldnt_connect(url)
+
     if len(models) == 0:
         typer.echo("No model available!")
         return
@@ -93,6 +102,8 @@ def model_info(
         assert "can't be found" in str(e)
         typer.echo(f"Model `{model_name}` doesn't exist", err=True)
         raise typer.Exit(code=1)
+    except ConnectionError:
+        couldnt_connect(url)
 
     typer.echo(f"[+] Model {model['model_name']}:")
     typer.echo(f"[*] Description: {model['description']}")
