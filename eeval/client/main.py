@@ -2,6 +2,7 @@ import logging
 from typing import List
 import tenseal as ts
 import typer
+import pickle
 from eeval.client import Client
 from eeval.client.exceptions import Answer418
 
@@ -37,7 +38,7 @@ def couldnt_connect(url):
 
 def log(msg, verbosity=1):
     if verbosity <= VERBOSE:
-        print(msg)
+        typer.echo(msg)
 
 
 @app.command()
@@ -118,17 +119,80 @@ def model_info(
     typer.echo(f"[*] Default version: {model['default_version']}")
 
 
-@app.command()
+@app.command("eval")
 def evaluate(
     url: str = typer.Argument(
         ..., help="base url of the API (e.g. 'http://myapi.com')"
     ),
-    model_name: str = typer.Argument(...),
-    context_file: typer.FileBinaryRead = typer.Argument(..., envvar="TENSEAL_CONTEXT"),
-    input_file: typer.FileBinaryRead = typer.Argument(...),
-    output_file: typer.FileBinaryWrite = typer.Argument(...),
+    model_name: str = typer.Argument(..., help="model to use for evaluation"),
+    context_file: typer.FileBinaryRead = typer.Argument(
+        ..., envvar="TENSEAL_CONTEXT", help="file to load the TenSEAL context from"
+    ),
+    input_file: typer.FileBinaryRead = typer.Argument(
+        ..., help="file to load the input from"
+    ),
+    output_file: typer.FileBinaryWrite = typer.Argument(
+        ..., help="file to write the encrypted output to"
+    ),
+    send_secret_key: bool = typer.Option(
+        False,
+        "--sk/--no-sk",
+        "-s/-S",
+        help="send the secret key with the context (if it contains it)",
+    ),
+    decrypt_result: bool = typer.Option(
+        False, "--decrypt", "-d", help="decrypt result",
+    ),
 ):
-    pass
+    """Evaluate an encrypted input on a remote hosted model"""
+    try:
+        ctx = ts.context_from(context_file.read())
+    except Exception as e:
+        typer.echo(f"Couldn't load context: {str(e)}", err=True)
+        raise typer.Exit(code=1)
+    try:
+        enc_input = ts.ckks_vector_from(ctx, input_file.read())
+    except Exception as e:
+        typer.echo(f"Couldn't load encrypted input: {str(e)}", err=True)
+        raise typer.Exit(code=1)
+
+    ctx_holds_sk = ctx.is_private()
+    sk = ctx.secret_key() if ctx_holds_sk else None
+    if not send_secret_key:
+        if ctx_holds_sk:
+            ctx.make_context_public()
+            log("dropped secret key from context")
+        else:
+            log("context doesn't hold a secret key, nothing to drop")
+
+    client = Client(url)
+    try:
+        enc_out = client.evaluate(model_name, ctx, enc_input)
+    except Answer418 as e:
+        if "can't be found" in str(e):
+            typer.echo(f"Model `{model_name}` doesn't exist", err=True)
+        else:
+            typer.echo(f"Error: {str(e)}", err=True)
+        raise typer.Exit(code=1)
+    except ConnectionError:
+        couldnt_connect(url)
+
+    out = None
+    if decrypt_result:
+        if ctx_holds_sk:
+            out = enc_out.decrypt(sk)
+            log(f"decrypted output: {out}")
+        else:
+            typer.echo(
+                "Context doesn't hold a secret key, can't decrypt result", err=True
+            )
+
+    if out:  # decrypted
+        pickle.dump(out, output_file)
+        log("saved decrypted result to output file")
+    else:
+        output_file.write(enc_out.serialize())
+        log("saved encrypted result to output file")
 
 
 @app.command()
@@ -176,7 +240,6 @@ def create_context(
 ):
     """Create a TenSEAL context holding encryption keys and parameters"""
 
-    log("creating context...")
     ctx = ts.context(
         ts.SCHEME_TYPE.CKKS,
         poly_modulus_degree=poly_modulus_degree,
@@ -190,18 +253,15 @@ def create_context(
         # relin keys is always generated
         pass
     if gen_galois_keys:
-        log("generating galois keys...")
         ctx.generate_galois_keys()
         log("galois keys generated")
     if not save_secret_key:
         # drop secret-key
-        log("dropping secret key...")
         ctx.make_context_public()
         log("secret key dropped")
 
-    log("writing context to file...")
     output_file.write(ctx.serialize())
-    log("context created successfully!")
+    log("context saved successfully!")
 
 
 @app.callback()
