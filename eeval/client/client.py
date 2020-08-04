@@ -2,7 +2,7 @@ from typing import List, Union
 import requests
 import tenseal as ts
 from base64 import b64encode, b64decode
-from encrypted_evaluation.client.exceptions import *
+from eeval.client.exceptions import *
 
 
 class Client:

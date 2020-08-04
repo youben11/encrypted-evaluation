@@ -3,8 +3,8 @@ from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from encrypted_evaluation.models import get_model, get_all_model_def, get_model_def
-from encrypted_evaluation.models.exceptions import *
+from eeval.models import get_model, get_all_model_def, get_model_def
+from eeval.models.exceptions import *
 from base64 import b64encode, b64decode
 
 

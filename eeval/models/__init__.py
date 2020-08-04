@@ -4,9 +4,9 @@ import logging
 import pickle
 from typing import List
 from collections import namedtuple
-from encrypted_evaluation.models.fc import FC
-from encrypted_evaluation.models.abstract_model import Model
-from encrypted_evaluation.models.exceptions import ModelNotFound
+from eeval.models.fc import FC
+from eeval.models.abstract_model import Model
+from eeval.models.exceptions import ModelNotFound
 
 
 _DATA_PATH = "data"

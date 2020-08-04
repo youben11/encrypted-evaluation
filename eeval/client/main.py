@@ -1,8 +1,8 @@
 from typing import List
 import tenseal as ts
 import typer
-from encrypted_evaluation.client import Client
-from encrypted_evaluation.client.exceptions import Answer418
+from eeval.client import Client
+from eeval.client.exceptions import Answer418
 
 
 VERBOSE = False
