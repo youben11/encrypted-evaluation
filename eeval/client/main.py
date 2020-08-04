@@ -1,3 +1,4 @@
+import logging
 from typing import List
 import tenseal as ts
 import typer
@@ -5,7 +6,7 @@ from eeval.client import Client
 from eeval.client.exceptions import Answer418
 
 
-VERBOSE = False
+VERBOSE = 0
 
 app = typer.Typer()
 
@@ -26,11 +27,17 @@ app = typer.Typer()
 def check_power_of_two(value: int):
     if value & (value - 1) != 0 or value <= 0:
         raise typer.BadParameter("Only powers of two greater than zero are allowed")
+    return value
 
 
 def couldnt_connect(url):
     typer.echo(f"Couldn't connect to '{url}'", err=True)
     raise typer.Exit(code=1)
+
+
+def log(msg, verbosity=1):
+    if verbosity <= VERBOSE:
+        print(msg)
 
 
 @app.command()
@@ -119,7 +126,7 @@ def evaluate(
     model_name: str = typer.Argument(...),
     context_file: typer.FileBinaryRead = typer.Argument(..., envvar="TENSEAL_CONTEXT"),
     input_file: typer.FileBinaryRead = typer.Argument(...),
-    output_file: typer.FileBinaryWrite = typer.Argument(..., mode="xb"),
+    output_file: typer.FileBinaryWrite = typer.Argument(...),
 ):
     pass
 
@@ -145,15 +152,17 @@ def encode(
 
 @app.command()
 def create_context(
-    file_name: typer.FileBinaryWrite = typer.Argument(...),
-    poly_mod_degree: int = typer.Argument(
+    output_file: typer.FileBinaryWrite = typer.Argument(
+        ..., help="file to save the context to"
+    ),
+    poly_modulus_degree: int = typer.Argument(
         ..., help="polynomial modulus degree", callback=check_power_of_two
     ),
     coeff_mod_bit_sizes: List[int] = typer.Argument(
         ..., help="bit size of the coeffcients modulus"
     ),
     global_scale: float = typer.Option(
-        None, "--scale", min=1, help="scale to use by default for CKKS encoding",
+        ..., "--scale", min=1, help="scale to use by default for CKKS encoding",
     ),
     gen_galois_keys: bool = typer.Option(
         False, "--gk/--no-gk", "-g/-G", help="generate galois keys"
@@ -165,11 +174,34 @@ def create_context(
         True, "--sk/--no-sk", "-s/-S", help="save the secret key into the context"
     ),
 ):
-    print(coeff_mod_bit_sizes)
-    print(gen_galois_keys)
-    print(
-        f"GRS flag is {int(gen_galois_keys)}{int(gen_relin_keys)}{int(save_secret_key)}"
+    """Create a TenSEAL context holding encryption keys and parameters"""
+
+    log("creating context...")
+    ctx = ts.context(
+        ts.SCHEME_TYPE.CKKS,
+        poly_modulus_degree=poly_modulus_degree,
+        coeff_mod_bit_sizes=coeff_mod_bit_sizes,
     )
+    # set scale
+    ctx.global_scale = global_scale
+    log("context created")
+
+    if gen_relin_keys:
+        # relin keys is always generated
+        pass
+    if gen_galois_keys:
+        log("generating galois keys...")
+        ctx.generate_galois_keys()
+        log("galois keys generated")
+    if not save_secret_key:
+        # drop secret-key
+        log("dropping secret key...")
+        ctx.make_context_public()
+        log("secret key dropped")
+
+    log("writing context to file...")
+    output_file.write(ctx.serialize())
+    log("context created successfully!")
 
 
 @app.callback()
@@ -177,8 +209,8 @@ def main(
     verbose: int = typer.Option(0, "--verbose", "-v", count=True, help="verbose level")
 ):
     """What this CLI is about?"""
-    if verbose > 0:  # might be worth using the level later
-        VERBOSE = True
+    global VERBOSE
+    VERBOSE = verbose
 
 
 if __name__ == "__main__":
