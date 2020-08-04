@@ -1,8 +1,9 @@
 import logging
-from typing import List, Tuple
 import tenseal as ts
 import typer
 import pickle
+import numpy as np
+from typing import List, Tuple
 from eeval.client import Client
 from eeval.client.exceptions import Answer418
 
@@ -10,19 +11,6 @@ from eeval.client.exceptions import Answer418
 VERBOSE = 0
 
 app = typer.Typer()
-
-# ctx = ts.context(ts.SCHEME_TYPE.CKKS, 8192, -1, [40, 21, 21, 21, 21, 21, 40])
-# ctx.global_scale = 2 ** 21
-# ctx.generate_galois_keys()
-
-# vec = ts.ckks_vector(ctx, [0.01] * 64)
-
-# client = Client("http://localhost:8000")
-# is_up = client.ping()
-# print(f"[+] API is {'up' if is_up else 'down'}")
-# print("[*] Sending context and encrypted vector for evaluation")
-# result = client.evaluate("fc", ctx, vec)
-# print(f"[+] Result: {result.decrypt()}")
 
 
 def check_power_of_two(value: int) -> int:
@@ -42,13 +30,18 @@ def log(msg, verbosity=1):
 
 
 def load_ctx_and_input(
-    context_file: typer.FileBinaryRead, input_file: typer.FileBinaryRead
+    context_file: typer.FileBinaryRead, input_file: typer.FileBinaryRead = None
 ) -> Tuple[ts._ts_cpp.TenSEALContext, ts._ts_cpp.CKKSVector]:
     try:
         ctx = ts.context_from(context_file.read())
     except Exception as e:
         typer.echo(f"Couldn't load context: {str(e)}", err=True)
         raise typer.Exit(code=1)
+
+    # only load context
+    if input_file is None:
+        return ctx, None
+
     try:
         enc_input = ts.ckks_vector_from(ctx, input_file.read())
     except Exception as e:
@@ -135,6 +128,11 @@ def model_info(
     typer.echo(f"[*] Default version: {model['default_version']}")
 
 
+# TODO:
+# - encode and encrypt here
+# - display the decrypted output if there is a secret key
+# - choose to do softmax, or choose the max label
+# - writing the output should be optional
 @app.command("eval")
 def evaluate(
     url: str = typer.Argument(
@@ -222,20 +220,52 @@ def decrypt(
         typer.echo("Context doesn't hold a secret key, can't decrypt tensor", err=True)
         raise typer.Exit(code=1)
     result = enc_input.decrypt()
-    log("decryption completed")
+    log(f"decryption completed, result is: {result}")
     pickle.dump(result, output_file)
     log("decrypted result saved to output file")
 
 
 @app.command()
-def encode(
-    input_file: typer.FileBinaryRead = typer.Argument(...),
+def encrypt(
+    context_file: typer.FileBinaryRead = typer.Argument(
+        ..., envvar="TENSEAL_CONTEXT", help="file to load the TenSEAL context from"
+    ),
+    input_file: typer.FileBinaryRead = typer.Argument(
+        ..., help="file to load the numpy tensor to encrypt from"
+    ),
+    output_file: typer.FileBinaryWrite = typer.Argument(
+        ..., help="file to save the encrypted tensor to"
+    ),
     file_type: str = typer.Option(
         "", "--type", "-t", help="type of the file to encode"
     ),
     method: str = typer.Option("", "--method", "-m", help="encoding method to use"),
 ):
-    pass
+    """Encrypt a pickled numpy tensor"""
+
+    ctx, _ = load_ctx_and_input(context_file, None)
+    try:
+        tensor = pickle.load(input_file)
+    except Exception as e:
+        typer.echo(f"Error while unpickling tensor: {str(e)}", err=True)
+        raise typer.Exit(code=1)
+
+    if not isinstance(tensor, np.ndarray):
+        typer.echo("Can't encrypt other than numpy tensors", err=True)
+        raise typer.Exit(code=1)
+
+    dim = len(tensor.shape)
+    if dim > 1:
+        typer.echo("Can't encrypt numpy tensors of dim > 1", err=True)
+        raise typer.Exit(code=1)
+
+    assert dim == 1
+    vec = tensor.tolist()
+    log("tensor encoded")
+    enc_vec = ts.ckks_vector(ctx, vec)
+    log("tensor encrypted")
+    output_file.write(enc_vec.serialize())
+    log("saved encrypted tensor")
 
 
 @app.command()
