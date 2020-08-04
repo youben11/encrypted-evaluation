@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Tuple
 import tenseal as ts
 import typer
 import pickle
@@ -25,7 +25,7 @@ app = typer.Typer()
 # print(f"[+] Result: {result.decrypt()}")
 
 
-def check_power_of_two(value: int):
+def check_power_of_two(value: int) -> int:
     if value & (value - 1) != 0 or value <= 0:
         raise typer.BadParameter("Only powers of two greater than zero are allowed")
     return value
@@ -39,6 +39,22 @@ def couldnt_connect(url):
 def log(msg, verbosity=1):
     if verbosity <= VERBOSE:
         typer.echo(msg)
+
+
+def load_ctx_and_input(
+    context_file: typer.FileBinaryRead, input_file: typer.FileBinaryRead
+) -> Tuple[ts._ts_cpp.TenSEALContext, ts._ts_cpp.CKKSVector]:
+    try:
+        ctx = ts.context_from(context_file.read())
+    except Exception as e:
+        typer.echo(f"Couldn't load context: {str(e)}", err=True)
+        raise typer.Exit(code=1)
+    try:
+        enc_input = ts.ckks_vector_from(ctx, input_file.read())
+    except Exception as e:
+        typer.echo(f"Couldn't load encrypted input: {str(e)}", err=True)
+        raise typer.Exit(code=1)
+    return ctx, enc_input
 
 
 @app.command()
@@ -145,16 +161,8 @@ def evaluate(
     ),
 ):
     """Evaluate an encrypted input on a remote hosted model"""
-    try:
-        ctx = ts.context_from(context_file.read())
-    except Exception as e:
-        typer.echo(f"Couldn't load context: {str(e)}", err=True)
-        raise typer.Exit(code=1)
-    try:
-        enc_input = ts.ckks_vector_from(ctx, input_file.read())
-    except Exception as e:
-        typer.echo(f"Couldn't load encrypted input: {str(e)}", err=True)
-        raise typer.Exit(code=1)
+
+    ctx, enc_input = load_ctx_and_input(context_file, input_file)
 
     ctx_holds_sk = ctx.is_private()
     sk = ctx.secret_key() if ctx_holds_sk else None
@@ -197,10 +205,26 @@ def evaluate(
 
 @app.command()
 def decrypt(
-    context_file: typer.FileBinaryRead = typer.Argument(..., envvar="TENSEAL_CONTEXT"),
-    output_file: typer.FileBinaryWrite = typer.Argument(...),
+    context_file: typer.FileBinaryRead = typer.Argument(
+        ..., envvar="TENSEAL_CONTEXT", help="file to load the TenSEAL context from"
+    ),
+    input_file: typer.FileBinaryRead = typer.Argument(
+        ..., help="file to load the tensor to decrypt from"
+    ),
+    output_file: typer.FileBinaryWrite = typer.Argument(
+        ..., help="file to save the plain tensor to"
+    ),
 ):
-    pass
+    """Decrypt a saved tensor"""
+
+    ctx, enc_input = load_ctx_and_input(context_file, input_file)
+    if not ctx.is_private():
+        typer.echo("Context doesn't hold a secret key, can't decrypt tensor", err=True)
+        raise typer.Exit(code=1)
+    result = enc_input.decrypt()
+    log("decryption completed")
+    pickle.dump(result, output_file)
+    log("decrypted result saved to output file")
 
 
 @app.command()
