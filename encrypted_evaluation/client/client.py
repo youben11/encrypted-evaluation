@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 import requests
 import tenseal as ts
 from base64 import b64encode, b64decode
@@ -76,8 +76,8 @@ class Client:
     def evaluate(
         self,
         model_name: str,
-        context: ts._ts_cpp.TenSEALContext,
-        ckks_vector: ts._ts_cpp.CKKSVector,
+        context: Union[ts._ts_cpp.TenSEALContext, bytes],  # serialized or not
+        ckks_vector: Union[ts._ts_cpp.CKKSVector, bytes],  # serialized or not
     ) -> ts._ts_cpp.CKKSVector:
         """Evaluate model `model_name` on the encrypted input data `ckks_vector`
 
@@ -97,8 +97,16 @@ class Client:
 
         url = self._base_url + f"/eval/{model_name}"
 
-        ser_ctx = context.serialize()
-        ser_vec = ckks_vector.serialize()
+        # don't serialize if already
+        if not isinstance(context, bytes):
+            ser_ctx = context.serialize()
+        else:
+            ser_ctx = context
+        if not isinstance(ckks_vector, bytes):
+            ser_vec = ckks_vector.serialize()
+        else:
+            ser_vec = ckks_vector
+
         data = {
             "context": b64encode(ser_ctx).decode(),
             "ckks_vector": b64encode(ser_vec).decode(),

@@ -135,3 +135,6 @@ async def evaluation(data: CKKSVectorWithContext, model_name: str, version: str 
 async def ping():
     """Used to check if the API is up"""
     return {"message": "pong"}
+
+
+# TODO: add a way to register a context and get a token to use later
