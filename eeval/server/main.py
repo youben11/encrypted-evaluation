@@ -1,3 +1,4 @@
+import uvicorn
 from enum import Enum
 from typing import List
 from fastapi import FastAPI, HTTPException
@@ -138,3 +139,7 @@ async def ping():
 
 
 # TODO: add a way to register a context and get a token to use later
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="127.0.0.1", port=8000)
