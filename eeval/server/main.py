@@ -124,10 +124,8 @@ async def evaluation(data: CKKSVectorWithContext, model_name: str, version: str 
     try:
         encrypted_x = model.deserialize_input(context, ckks_vector)
         encrypted_out = model(encrypted_x)
-    except EvaluationError as ee:
-        return answer_418(str(ee))
-    except DeserializationError as de:
-        return answer_418(str(de))
+    except (DeserializationError, EvaluationError, InvalidContext) as error:
+        return answer_418(str(error))
 
     return {"ckks_vector": b64encode(encrypted_out.serialize())}
 

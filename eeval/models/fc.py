@@ -2,7 +2,11 @@
 
 import tenseal as ts
 from eeval.models.abstract_model import Model
-from eeval.models.exceptions import DeserializationError, EvaluationError
+from eeval.models.exceptions import (
+    DeserializationError,
+    EvaluationError,
+    InvalidContext,
+)
 
 
 class FC(Model):
@@ -41,4 +45,11 @@ class FC(Model):
             enc_x = ts.ckks_vector_from(ctx, ckks_vector)
         except:
             raise DeserializationError("cannot deserialize context or ckks_vector")
+
+        # TODO: replace this with a more flexible check when introduced in the API
+        try:
+            _ = ctx.galois_keys()
+        except:
+            raise InvalidContext("the context doesn't hold galois keys")
+
         return enc_x
