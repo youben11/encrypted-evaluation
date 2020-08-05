@@ -10,10 +10,10 @@ from eeval.server.models.linear_layer import LinearLayer
 from eeval.server.models.exceptions import ModelNotFound
 
 
-_DEFAULT_DATA_PATH = os.path.join(os.path.realpath(os.path.dirname(__file__)), "data")
+_DEFAULT_DATA_DIR = os.path.join(os.path.realpath(os.path.dirname(__file__)), "data")
 
 model_def = namedtuple(
-    "model_definition", ["constructor", "default_version", "versions", "data_path"]
+    "model_definition", ["constructor", "default_version", "versions", "data_dir"]
 )
 # contains definition of every registered model
 _MODEL_DEFS = {
@@ -21,7 +21,7 @@ _MODEL_DEFS = {
     #     constructor=model_x,
     #     default_version="0.1",
     #     versions=["0.1", "0.2"],
-    #     data_path="/some/path/here",
+    #     data_dir="/some/path/here",
     # )
 }
 # cache model versions, set initially to one, then lazy loaded on demand
@@ -38,7 +38,7 @@ def register_model(
     versions: List[str],
     model_name: str = None,
     default_version: str = None,
-    data_path: str = None,
+    data_dir: str = None,
 ):
     """Register a model to serve in the API
 
@@ -47,7 +47,7 @@ def register_model(
         versions: versions of the model, each version should contain a different parameter file
         model_name: name of the model to register it with. Default is the class name
         default_versions: the default version to use. Set to the first element of versions if None
-        data_path: path to the folder to load parameters from, parameters files should be named
+        data_dir: path to the directory to load parameters from, parameters files should be named
             {model_name}-{version}.pickle and can be unpickled. Use default folder if None
 
     Returns:
@@ -83,13 +83,21 @@ def register_model(
         constructor=constructor_class,
         default_version=default_version,
         versions=versions,
-        data_path=data_path,
+        data_dir=data_dir,
     )
 
     # add entries for each version in the cache
     _MODELS_CACHE[model_name] = {
         model_version: None for model_version in _MODEL_DEFS[model_name].versions
     }
+
+
+def set_default_data_dir(path: str):
+    """Set the default directory where to look at model's data such as parameters"""
+    global _DEFAULT_DATA_DIR
+    # TODO: do some path checking
+    _DEFAULT_DATA_DIR = os.path.realpath(path)
+    return _DEFAULT_DATA_DIR
 
 
 def _load_parameters(model_name: str, version: str) -> dict:
@@ -106,10 +114,10 @@ def _load_parameters(model_name: str, version: str) -> dict:
         OSError: if can't open parameters' file
     """
     file_name = f"{model_name}-{version}.pickle"
-    data_path = _MODEL_DEFS[model_name].data_path
-    if data_path is None:
-        data_path = _DEFAULT_DATA_PATH
-    file_path = os.path.realpath(os.path.join(data_path, file_name))
+    data_dir = _MODEL_DEFS[model_name].data_dir
+    if data_dir is None:
+        data_dir = _DEFAULT_DATA_DIR
+    file_path = os.path.realpath(os.path.join(data_dir, file_name))
     try:
         parameters = pickle.load(open(file_path, "rb"))
         print(f"Model `{model_name}` version `{version}` loaded from '{file_path}'")

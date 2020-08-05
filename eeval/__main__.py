@@ -4,6 +4,7 @@ import typer
 import pickle
 import numpy as np
 from typing import List, Tuple
+from pathlib import Path
 from eeval.client import Client
 from eeval.client.exceptions import Answer418, ServerError
 from eeval import server
@@ -327,10 +328,23 @@ def start_server(
     model_loader: typer.FileText = typer.Option(
         None, "--model-loader", "-l", help="python script to register models in the API"
     ),
+    data_dir: Path = typer.Option(
+        None,
+        "--data-dir",
+        "-d",
+        exists=True,
+        help="default directory to look for model's data",
+    ),
     host: str = typer.Option("localhost", "--host", "-h", help="host address"),
     port: int = typer.Option(8000, "--port", "-p", min=1, max=65535, help="port"),
 ):
     """Start the API server"""
+    if data_dir is not None:
+        if not data_dir.is_dir():
+            raise typer.BadParameter("'--data-dir' / '-d' must be a directory.")
+        path = server.models.set_default_data_dir(data_dir)
+        log(f"default model's data directory set to {path}")
+
     if model_loader is None:
         typer.echo("No model to register. Use -l to register models")
     else:
