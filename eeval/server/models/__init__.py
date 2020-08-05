@@ -3,25 +3,93 @@ import os
 import logging
 import pickle
 from typing import List
+from inspect import isclass
 from collections import namedtuple
-from eeval.server.models.fc import FC
 from eeval.server.models.abstract_model import Model
+from eeval.server.models.linear_layer import LinearLayer
 from eeval.server.models.exceptions import ModelNotFound
 
 
-_DATA_PATH = "data"
+_DEFAULT_DATA_PATH = "data"
 
 model_def = namedtuple(
-    "model_definition", ["constructor", "default_version", "versions"]
+    "model_definition", ["constructor", "default_version", "versions", "data_path"]
 )
 # model names and version should always be lowercase
-_MODEL_DEFS = {"fc": model_def(constructor=FC, default_version="0.1", versions=["0.1"])}
-_MODELS = {
-    model_name: {
+_MODEL_DEFS = {
+    # contains definition of every registered model
+    # "model_x": model_def(
+    #     constructor=model_x,
+    #     default_version="0.1",
+    #     versions=["0.1", "0.2"],
+    #     data_path="/some/path/here",
+    # )
+}
+_MODELS_CACHE = {
+    # cache model versions, set initially to one, then lazy loaded on demand
+    # model_name: {
+    #     model_version: None for model_version in _MODEL_DEFS[model_name].versions
+    # }
+    # for model_name in _MODEL_DEFS.keys()
+}
+
+
+def register_model(
+    constructor_class,
+    versions: List[str],
+    model_name: str = None,
+    default_version: str = None,
+    data_path: str = None,
+):
+    """Register a model to serve in the API
+
+    Args:
+        constructor_class: class derived from eeval.server.models.abstract_model.Model
+        versions: versions of the model, each version should contain a different parameter file
+        model_name: name of the model to register it with. Default is the class name
+        default_versions: the default version to use. Set to the first element of versions if None
+        data_path: path to the folder to load parameters from, parameters files should be named
+            {model_name}-{version}.pickle and can be unpickled. Use default folder if None
+
+    Returns:
+        str: the name of the model registered
+
+    Raises:
+        TypeError: constructor_class is not a subclass of models.abstract_model.Model
+        ValueError: versions is empty or default_version not in versions
+        FolderNotFound: folder not found
+        FileNotFound: versions file not found
+    """
+    if not isclass(constructor_class):
+        raise TypeError("constructor_class must be class")
+    if not issubclass(constructor_class, Model):
+        raise TypeError(
+            "constructor_class is not a subclass of models.abstract_model.Model"
+        )
+    if len(versions) == 0:
+        raise ValueError("versions can't be an empty list")
+
+    if default_version is None:
+        default_version = versions[0]
+    elif default_version not in versions:
+        raise ValueError("default_version must be in versions")
+
+    # TODO: check data_folder
+
+    if model_name is None:
+        model_name = constructor_class.__name__
+    # add the model to the definitions list
+    _MODEL_DEFS[model_name] = model_def(
+        constructor=constructor_class,
+        default_version=default_version,
+        versions=versions,
+        data_path=data_path,
+    )
+    # add entries for each version in the cache
+
+    _MODELS_CACHE[model_name] = {
         model_version: None for model_version in _MODEL_DEFS[model_name].versions
     }
-    for model_name in _MODEL_DEFS.keys()
-}
 
 
 def _load_parameters(model_name: str, version: str) -> dict:
@@ -37,9 +105,12 @@ def _load_parameters(model_name: str, version: str) -> dict:
     Raises:
         OSError: if can't open parameters' file
     """
-    file_name = f"{model_name}-{version}.parameters"
+    file_name = f"{model_name}-{version}.pickle"
+    data_path = _MODEL_DEFS[model_name].data_path
+    if data_path is None:
+        data_path = _DEFAULT_DATA_PATH
     file_path = os.path.join(
-        os.path.realpath(os.path.dirname(__file__)), _DATA_PATH, file_name
+        os.path.realpath(os.path.dirname(__file__)), data_path, file_name
     )
     try:
         parameters = pickle.load(open(file_path, "rb"))
@@ -74,11 +145,13 @@ def get_model(model_name: str, version: str = None) -> Model:
         raise ModelNotFound(f"Model `{model_name}` doesn't have version `{version}`")
 
     # lazy loading of models
-    if _MODELS[model_name][version] is None:
+    if _MODELS_CACHE[model_name][version] is None:
         parameters = _load_parameters(model_name, version)
-        _MODELS[model_name][version] = _MODEL_DEFS[model_name].constructor(parameters)
+        _MODELS_CACHE[model_name][version] = _MODEL_DEFS[model_name].constructor(
+            parameters
+        )
 
-    return _MODELS[model_name][version]
+    return _MODELS_CACHE[model_name][version]
 
 
 def get_model_def(model_name: str) -> dict:
@@ -110,3 +183,13 @@ def get_all_model_def() -> List[dict]:
     """Get the description of all the available model"""
     model_defs = [get_model_def(model_name) for model_name in _MODEL_DEFS]
     return model_defs
+
+
+__all__ = [
+    "get_all_model_def",
+    "get_model_def",
+    "get_model",
+    "LinearLayer",
+    "Model",
+    "register_model",
+]
