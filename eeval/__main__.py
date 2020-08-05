@@ -5,7 +5,7 @@ import pickle
 import numpy as np
 from typing import List, Tuple
 from eeval.client import Client
-from eeval.client.exceptions import Answer418
+from eeval.client.exceptions import Answer418, ServerError
 from eeval import server
 
 
@@ -183,6 +183,9 @@ def evaluate(
         raise typer.Exit(code=1)
     except ConnectionError:
         couldnt_connect(url)
+    except ServerError:
+        typer.echo("Server side error", err=True)
+        raise typer.Exit(code=1)
 
     out = None
     if decrypt_result:
