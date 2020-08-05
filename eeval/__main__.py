@@ -324,10 +324,24 @@ def create_context(
 
 @app.command()
 def start_server(
+    model_loader: typer.FileText = typer.Option(
+        None, "--model-loader", "-l", help="python script to register models in the API"
+    ),
     host: str = typer.Option("localhost", "--host", "-h", help="host address"),
     port: int = typer.Option(8000, "--port", "-p", min=1, max=65535, help="port"),
 ):
     """Start the API server"""
+    if model_loader is None:
+        typer.echo("No model to register. Use -l to register models")
+    else:
+        loader_script = model_loader.read()
+        exec(loader_script)
+        # print registered models
+        models = server.models.get_all_model_def()
+        registered_models = ", ".join([model["model_name"] for model in models])
+        typer.echo(f"Registered models: {registered_models}")
+    # start serving the API
+    typer.echo("Starting the server now...")
     server.start(host=host, port=port)
 
 
