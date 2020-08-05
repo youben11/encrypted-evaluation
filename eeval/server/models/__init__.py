@@ -32,7 +32,7 @@ _MODELS_CACHE = {
     # for model_name in _MODEL_DEFS.keys()
 }
 
-
+# TODO: maybe add a decorator for this functionality
 def register_model(
     constructor_class,
     versions: List[str],
@@ -199,4 +199,5 @@ __all__ = [
     "LinearLayer",
     "Model",
     "register_model",
+    "set_default_data_dir",
 ]

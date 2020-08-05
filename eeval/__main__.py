@@ -323,10 +323,10 @@ def create_context(
     log("context saved successfully!")
 
 
-@app.command()
+@app.command("serve")
 def start_server(
-    model_loader: typer.FileText = typer.Option(
-        None, "--model-loader", "-l", help="python script to register models in the API"
+    loader_script: typer.FileText = typer.Option(
+        None, "--loader-script", "-l", help="python script to register models in the API"
     ),
     data_dir: Path = typer.Option(
         None,
@@ -345,11 +345,16 @@ def start_server(
         path = server.models.set_default_data_dir(data_dir)
         log(f"default model's data directory set to {path}")
 
-    if model_loader is None:
+    if loader_script is None:
         typer.echo("No model to register. Use -l to register models")
     else:
-        loader_script = model_loader.read()
-        exec(loader_script)
+        script = loader_script.read()
+        try:
+            exec(script)
+        except Exception as e:
+            typer.echo(f"Failed running loader script '{loader_script.name}': {e}")
+            raise typer.Exit(code=1)
+
         # print registered models
         models = server.models.get_all_model_def()
         registered_models = ", ".join([model["model_name"] for model in models])
