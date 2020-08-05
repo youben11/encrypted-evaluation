@@ -6,6 +6,7 @@ import numpy as np
 from typing import List, Tuple
 from eeval.client import Client
 from eeval.client.exceptions import Answer418
+from eeval import server
 
 
 VERBOSE = 0
@@ -316,6 +317,15 @@ def create_context(
 
     output_file.write(ctx.serialize())
     log("context saved successfully!")
+
+
+@app.command()
+def start_server(
+    host: str = typer.Option("localhost", "--host", "-h", help="host address"),
+    port: int = typer.Option(8000, "--port", "-p", min=1, max=65535, help="port"),
+):
+    """Start the API server"""
+    server.start(host=host, port=port)
 
 
 @app.callback()
