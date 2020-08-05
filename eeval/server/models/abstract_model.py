@@ -25,7 +25,7 @@ class Model(ABC):
         pass
 
     @abstractstaticmethod
-    def deserialize_input(context: bytes, ckks_vector: bytes) -> ts._ts_cpp.CKKSVector:
+    def prepare_input(context: bytes, ckks_vector: bytes) -> ts._ts_cpp.CKKSVector:
         """Deserialize input and check if the parameters are appropriate for the model
 
         Args:

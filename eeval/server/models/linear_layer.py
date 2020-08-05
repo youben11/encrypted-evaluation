@@ -28,7 +28,7 @@ class LinearLayer(Model):
         return out
 
     @staticmethod
-    def deserialize_input(context: bytes, ckks_vector: bytes) -> ts._ts_cpp.CKKSVector:
+    def prepare_input(context: bytes, ckks_vector: bytes) -> ts._ts_cpp.CKKSVector:
         # TODO: check parameters or size and raise InvalidParameters when needed
         try:
             ctx = ts.context_from(context)

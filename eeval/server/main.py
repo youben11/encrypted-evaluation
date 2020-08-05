@@ -122,7 +122,7 @@ async def evaluation(data: CKKSVectorWithContext, model_name: str, version: str 
 
     # deserialize input and do the evaluation
     try:
-        encrypted_x = model.deserialize_input(context, ckks_vector)
+        encrypted_x = model.prepare_input(context, ckks_vector)
         encrypted_out = model(encrypted_x)
     except (DeserializationError, EvaluationError, InvalidContext) as error:
         return answer_418(str(error))
