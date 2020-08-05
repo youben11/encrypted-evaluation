@@ -10,14 +10,13 @@ from eeval.server.models.linear_layer import LinearLayer
 from eeval.server.models.exceptions import ModelNotFound
 
 
-_DEFAULT_DATA_PATH = "data"
+_DEFAULT_DATA_PATH = os.path.join(os.path.realpath(os.path.dirname(__file__)), "data")
 
 model_def = namedtuple(
     "model_definition", ["constructor", "default_version", "versions", "data_path"]
 )
-# model names and version should always be lowercase
+# contains definition of every registered model
 _MODEL_DEFS = {
-    # contains definition of every registered model
     # "model_x": model_def(
     #     constructor=model_x,
     #     default_version="0.1",
@@ -25,8 +24,8 @@ _MODEL_DEFS = {
     #     data_path="/some/path/here",
     # )
 }
+# cache model versions, set initially to one, then lazy loaded on demand
 _MODELS_CACHE = {
-    # cache model versions, set initially to one, then lazy loaded on demand
     # model_name: {
     #     model_version: None for model_version in _MODEL_DEFS[model_name].versions
     # }
@@ -78,6 +77,7 @@ def register_model(
 
     if model_name is None:
         model_name = constructor_class.__name__
+
     # add the model to the definitions list
     _MODEL_DEFS[model_name] = model_def(
         constructor=constructor_class,
@@ -85,8 +85,8 @@ def register_model(
         versions=versions,
         data_path=data_path,
     )
-    # add entries for each version in the cache
 
+    # add entries for each version in the cache
     _MODELS_CACHE[model_name] = {
         model_version: None for model_version in _MODEL_DEFS[model_name].versions
     }
@@ -109,11 +109,10 @@ def _load_parameters(model_name: str, version: str) -> dict:
     data_path = _MODEL_DEFS[model_name].data_path
     if data_path is None:
         data_path = _DEFAULT_DATA_PATH
-    file_path = os.path.join(
-        os.path.realpath(os.path.dirname(__file__)), data_path, file_name
-    )
+    file_path = os.path.realpath(os.path.join(data_path, file_name))
     try:
         parameters = pickle.load(open(file_path, "rb"))
+        print(f"Model `{model_name}` version `{version}` loaded from '{file_path}'")
     except OSError as ose:
         logging.error(
             f"Parameters file `{file_path}` not found for model `{model_name}`, version {version}"
