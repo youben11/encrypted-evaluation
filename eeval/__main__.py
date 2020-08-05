@@ -327,5 +327,9 @@ def main(
     VERBOSE = verbose
 
 
-if __name__ == "__main__":
+def run_cli():
     app()
+
+
+if __name__ == "__main__":
+    run_cli()

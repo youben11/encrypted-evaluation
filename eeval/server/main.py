@@ -4,8 +4,8 @@ from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from eeval.models import get_model, get_all_model_def, get_model_def
-from eeval.models.exceptions import *
+from eeval.server.models import get_model, get_all_model_def, get_model_def
+from eeval.server.models.exceptions import *
 from base64 import b64encode, b64decode
 
 

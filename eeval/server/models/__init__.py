@@ -4,9 +4,9 @@ import logging
 import pickle
 from typing import List
 from collections import namedtuple
-from eeval.models.fc import FC
-from eeval.models.abstract_model import Model
-from eeval.models.exceptions import ModelNotFound
+from eeval.server.models.fc import FC
+from eeval.server.models.abstract_model import Model
+from eeval.server.models.exceptions import ModelNotFound
 
 
 _DATA_PATH = "data"

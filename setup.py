@@ -13,4 +13,9 @@ setuptools.setup(
     ),
     url="https://github.com/youben11/encrypted_evaluation",
     # tests_require=["pytest"],
+    entry_points={
+        'console_scripts': [
+            'eeval = eeval.__main__:run_cli',
+        ]
+    }
 )

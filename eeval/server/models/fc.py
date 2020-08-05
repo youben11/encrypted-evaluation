@@ -1,8 +1,8 @@
 """FC model"""
 
 import tenseal as ts
-from eeval.models.abstract_model import Model
-from eeval.models.exceptions import (
+from eeval.server.models.abstract_model import Model
+from eeval.server.models.exceptions import (
     DeserializationError,
     EvaluationError,
     InvalidContext,
