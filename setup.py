@@ -8,7 +8,7 @@ def read(fname):
 
 setuptools.setup(
     name="eeval",
-    version="0.1.0",
+    version="0.1.1",
     author="Ayoub Benaissa",
     author_email="ayouben9@gmail.com",
     install_requires=read("requirements.txt").split("\n"),
