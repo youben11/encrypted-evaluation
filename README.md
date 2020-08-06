@@ -52,15 +52,14 @@ We show a basic client/server app where the client send an encrypted input to th
 Here we use the linear layer model which is already implemented for showcasing purposes, otherwise, you should implement your own model by inheriting from `eeval.server.model.Model` and implementing the required method
 
 ```python
-from eeval.server.models.linear_layer import LinearLayer
-from eeval.server.models import register_model
-import eeval.server
+import eeval.server as server
+from eeval import models
 
 
 # register the LinearLayer model
-register_model(LinearLayer, versions=["0.1"])
+server.register_model(models.LinearLayer, versions=["0.1"])
 
-eeval.server.start(host="localhost", port=8000)
+server.start(host="localhost", port=8000)
 ```
 
 #### Client
@@ -68,7 +67,7 @@ eeval.server.start(host="localhost", port=8000)
 The only thing the client need to know is how to encode and encrypt his data, the rest is handled by `eeval.client.Client`
 
 ```python
-from eeval.client import Client
+from eeval import Client
 import tenseal as ts
 
 
