@@ -368,7 +368,7 @@ def start_server(
 def main(
     verbose: int = typer.Option(0, "--verbose", "-v", count=True, help="verbose level")
 ):
-    """What this CLI is about?"""
+    """Encrypted evaluation with homomorphic encryption"""
     global VERBOSE
     VERBOSE = verbose
 
