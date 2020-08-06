@@ -1,3 +1,5 @@
+"""Client implementing the communication with the server"""
+
 from typing import List, Union
 import requests
 import tenseal as ts

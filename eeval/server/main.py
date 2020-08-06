@@ -1,3 +1,5 @@
+"""RESTful API providing the main evaluation service"""
+
 import uvicorn
 from enum import Enum
 from typing import List

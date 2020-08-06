@@ -1,3 +1,5 @@
+"""CLI for using eeval"""
+
 import logging
 import tenseal as ts
 import typer
@@ -326,7 +328,10 @@ def create_context(
 @app.command("serve")
 def start_server(
     loader_script: typer.FileText = typer.Option(
-        None, "--loader-script", "-l", help="python script to register models in the API"
+        None,
+        "--loader-script",
+        "-l",
+        help="python script to register models in the API",
     ),
     data_dir: Path = typer.Option(
         None,

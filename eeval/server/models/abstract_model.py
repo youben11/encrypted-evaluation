@@ -1,3 +1,5 @@
+"""Abstract model that defines mandatory model methods"""
+
 from typing import Dict
 from abc import ABC, abstractmethod, abstractstaticmethod
 import tenseal as ts
