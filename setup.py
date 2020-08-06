@@ -21,7 +21,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     packages=setuptools.find_packages(include=["eeval", "eeval.*"]),
-    url="https://github.com/youben11/encrypted_evaluation",
+    url="https://github.com/youben11/encrypted-evaluation",
     # tests_require=["pytest"],
     entry_points={"console_scripts": ["eeval = eeval.__main__:run_cli",]},
     license="GPL3",
