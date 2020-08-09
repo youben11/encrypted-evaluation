@@ -23,8 +23,8 @@ def check_power_of_two(value: int) -> int:
     return value
 
 
-def couldnt_connect(url):
-    typer.echo(f"Couldn't connect to '{url}'", err=True)
+def couldnt_connect(hostname, port):
+    typer.echo(f"Couldn't connect to '{hostname}:{port}'", err=True)
     raise typer.Exit(code=1)
 
 
@@ -56,10 +56,13 @@ def load_ctx_and_input(
 
 @app.command()
 def ping(
-    url: str = typer.Argument(..., help="base url of the API (e.g. 'http://myapi.com')")
+    hostname: str = typer.Argument(
+        ..., help="hostname of the server (e.g. 'myapi.com')"
+    ),
+    port: int = typer.Option(8000, "--port", "-p", min=1, max=65535, help="port"),
 ):
     """Check if the API at URL is up"""
-    client = Client(url)
+    client = Client(hostname, port)
     is_up = client.ping()
     if is_up:
         typer.secho("API is up", fg=typer.colors.GREEN)
@@ -69,19 +72,20 @@ def ping(
 
 @app.command()
 def list_models(
-    url: str = typer.Argument(
-        ..., help="base url of the API (e.g. 'http://myapi.com')"
+    hostname: str = typer.Argument(
+        ..., help="hostname of the server (e.g. 'myapi.com')"
     ),
+    port: int = typer.Option(8000, "--port", "-p", min=1, max=65535, help="port"),
     only_names: bool = typer.Option(
         False, "--only-names", "-n", help="show only the model names"
     ),
 ):
     """List models available"""
-    client = Client(url)
+    client = Client(hostname, port)
     try:
         models = client.list_models()
     except ConnectionError:
-        couldnt_connect(url)
+        couldnt_connect(hostname, port)
 
     if len(models) == 0:
         typer.echo("No model available!")
@@ -110,13 +114,14 @@ def list_models(
 
 @app.command()
 def model_info(
-    url: str = typer.Argument(
-        ..., help="base url of the API (e.g. 'http://myapi.com')"
+    hostname: str = typer.Argument(
+        ..., help="hostname of the server (e.g. 'myapi.com')"
     ),
+    port: int = typer.Option(8000, "--port", "-p", min=1, max=65535, help="port"),
     model_name: str = typer.Argument(...),
 ):
     """Get information about a specific model"""
-    client = Client(url)
+    client = Client(hostname, port)
     try:
         model = client.model_info(model_name)
     except Answer418 as e:
@@ -124,7 +129,7 @@ def model_info(
         typer.echo(f"Model `{model_name}` doesn't exist", err=True)
         raise typer.Exit(code=1)
     except ConnectionError:
-        couldnt_connect(url)
+        couldnt_connect(hostname, port)
 
     typer.echo(f"[+] Model {model['model_name']}:")
     typer.echo(f"[*] Description: {model['description']}")
@@ -139,9 +144,10 @@ def model_info(
 # - writing the output should be optional
 @app.command("eval")
 def evaluate(
-    url: str = typer.Argument(
-        ..., help="base url of the API (e.g. 'http://myapi.com')"
+    hostname: str = typer.Argument(
+        ..., help="hostname of the server (e.g. 'myapi.com')"
     ),
+    port: int = typer.Option(8000, "--port", "-p", min=1, max=65535, help="port"),
     model_name: str = typer.Argument(..., help="model to use for evaluation"),
     context_file: typer.FileBinaryRead = typer.Argument(
         ..., envvar="TENSEAL_CONTEXT", help="file to load the TenSEAL context from"
@@ -175,7 +181,7 @@ def evaluate(
         else:
             log("context doesn't hold a secret key, nothing to drop")
 
-    client = Client(url)
+    client = Client(hostname, port)
     try:
         enc_out = client.evaluate(model_name, ctx, enc_input)
     except Answer418 as e:
@@ -185,7 +191,7 @@ def evaluate(
             typer.echo(f"Error: {str(e)}", err=True)
         raise typer.Exit(code=1)
     except ConnectionError:
-        couldnt_connect(url)
+        couldnt_connect(hostname, port)
     except ServerError:
         typer.echo("Server side error", err=True)
         raise typer.Exit(code=1)

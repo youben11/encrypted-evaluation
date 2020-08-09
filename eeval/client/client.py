@@ -10,8 +10,8 @@ from eeval.client.exceptions import *
 class Client:
     """Client to request server for evaluation"""
 
-    def __init__(self, base_url: str):
-        self._base_url = base_url
+    def __init__(self, hostname: str, port: int):
+        self._base_url = f"http://{hostname}:{port}"
 
     def ping(self) -> bool:
         """Make sure the API is up

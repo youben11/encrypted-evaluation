@@ -71,8 +71,9 @@ from eeval import Client
 import tenseal as ts
 
 
-url = "http://localhost:8000"
-client = Client(url)
+hostname = "localhost"
+port = 8000
+client = Client(hostname, port)
 
 # prepare the TenSEAL context
 ctx = ts.context(ts.SCHEME_TYPE.CKKS, 8192, -1, [60, 40, 60])
