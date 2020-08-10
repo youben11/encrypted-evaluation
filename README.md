@@ -1,11 +1,11 @@
 # encrypted-evaluation
 
-A Python framework to build client/server applications, where the server hosts models for evaluation over encrypted inputs, then the client can encrypt his model input and send it to the server for evaluation and get back the encrypted result.
+A Python framework to build client/server applications, where the server provide services, such as model evaluation over encrypted inputs, then the client can encrypt his model input and send it to the server for evaluation and get back the encrypted result.
 
 
 ## Features
 
-- :fire: Hosting models for encrypted evaluation in a RESTful API
+- :fire: Hosting models for encrypted evaluation over a RESTful API
 - :cyclone: Client to send encrypted inputs for evaluation in a remote API
 - :zap: CLI utility to encrypt/decrypt, generate keys, and communicate between the client and server
 
