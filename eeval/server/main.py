@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from eeval.server.models import get_model, get_all_model_def, get_model_def
 from eeval.server.models.exceptions import *
+from eeval.server import storage
 from base64 import b64encode, b64decode
 
 
@@ -50,11 +51,23 @@ class CKKSVector(BaseModel):
     )
 
 
-class CKKSVectorWithContext(CKKSVector):
+class Context(BaseModel):
     context: str = Field(
         ...,
         description="Serialized TenSEALContext containing the keys needed for the evaluation",
     )
+
+
+class CKKSVectorWithContext(CKKSVector, Context):
+    pass
+
+
+class Dataset(BaseModel):
+    context_id: str = Field(..., description="id of the context used with this dataset")
+    ckks_vectors: List[str] = Field(
+        ..., description="Serialized CKKSVectors representing the dataset entries"
+    )
+    batch_size: int = Field(1, min=1, description="Number of entries per CKKSVector")
 
 
 class ModelDescription(BaseModel):
@@ -77,6 +90,13 @@ def answer_418(msg: str):
     )
 
 
+def answer_404(msg: str):
+    return JSONResponse(
+        status_code=404,
+        content={"message": f"Resource not found. Server says '{msg}'"},
+    )
+
+
 @app.get("/models/", response_model=List[ModelDescription])
 async def list_models():
     """List available models with their description"""
@@ -93,7 +113,9 @@ async def describe_model(model_name: str):
     return model_def
 
 
-# TODO: use data (files?) instead of json to not have the need to base64
+# TODO:
+# - use data (files?) instead of json to not have the need to base64
+# - optionally use a context_id. May serve performing multiple evaluations
 @app.post(
     "/eval/{model_name}",
     response_model=CKKSVector,
@@ -136,6 +158,74 @@ async def evaluation(data: CKKSVectorWithContext, model_name: str, version: str 
 async def ping():
     """Used to check if the API is up"""
     return {"message": "pong"}
+
+
+@app.post(
+    "/contexts/register", response_description="id of the registered context",
+)
+async def register_context(data: Context):
+    """Register a context and get a context_id to refer to it"""
+    # decode data from client
+    try:
+        context = b64decode(data.context)
+    except:
+        return answer_418("bad base64 strings")
+
+    # TODO: try except possible exceptions
+    ctx_id = storage.save_context(context)
+    return {"context_id": ctx_id}
+
+
+@app.get(
+    "/contexts/",
+    response_model=Context,
+    response_description="A previously registered context referenced by `context_id`",
+)
+async def get_context(context_id: str):
+    """Get a previously registered context"""
+    try:
+        ctx = storage.get_raw_context(context_id)
+    except KeyError:
+        return answer_404(f"No context with id {context_id}")
+    return {
+        "context": b64encode(ctx),
+    }
+
+
+@app.post(
+    "/datasets/register", response_description="id of the registered dataset",
+)
+async def register_dataset(data: Dataset):
+    """Register a dataset and get a dataset_id to refer to it"""
+    # decode data from client
+    try:
+        dataset = []
+        for ckks_vector in data.ckks_vectors:
+            dataset.append(b64decode(ckks_vector))
+    except:
+        return answer_418("bad base64 strings")
+
+    # TODO: try except possible exceptions
+    dataset_id = storage.save_dataset(data.context_id, dataset, data.batch_size)
+    return {"dataset_id": dataset_id}
+
+
+@app.get(
+    "/datasets/",
+    response_model=Dataset,
+    response_description="A previously registered dataset referenced by `dataset_id`",
+)
+async def get_dataset(dataset_id: str):
+    """Get a previously registered dataset"""
+    try:
+        ctx_id, dataset, batch_size = storage.get_raw_dataset(dataset_id)
+    except KeyError:
+        return answer_404(f"No dataset with id {dataset_id}")
+    return {
+        "context_id": ctx_id,
+        "ckks_vectors": [b64encode(ckks_vector) for ckks_vector in dataset],
+        "batch_size": batch_size,
+    }
 
 
 # TODO: add a way to register a context and get a token to use later
