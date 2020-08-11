@@ -306,6 +306,72 @@ class Client:
 
         return ctx_id, ckks_vectors, batch_size
 
+    def train_logreg(
+        self,
+        context: ts._ts_cpp.TenSEALContext,
+        dataset: List[List[float]],
+        weights: List[float],
+        bias: float,
+        epochs: int = 1,
+    ) -> Tuple[List[float], float]:
+        """Train a logistic regression model
+
+        Args:
+            context: context to use for encryption/decryption of the datasets and parameters, as
+                well as remote computation
+            dataset: entries to use for training the logistic regression model
+            weights: vector of weights of the logistic regression model
+            bias: bias of the logistic regression model
+            epochs: number of iteration over the dataset
+
+        Returns:
+            Tuple[List[float], float]: updated weights and bias
+
+        Raises:
+            TypeError: if epochs is not an int
+            ValueError: if epochs is less than 1
+            ConnectionError: if a connection can't be established with the API
+            Answer418: if response.status_code is 418
+            ServerError: if response.status_code is 500
+        """
+
+        if not isinstance(epochs, int):
+            raise TypeError("epochs must be an int")
+        if epochs < 1:
+            raise ValueError("epochs must be greater or equal than 1")
+
+        # 1. encrypt dataset and make sure size is same as len(weight)
+        # 2. encrypt weights and bias
+        # 3. register dataset and get ids
+        # 4. iterate `epochs` time calling _train_logreg
+
+
+    def _train_logreg(
+        self,
+        weights: ts._ts_cpp.CKKSVector,
+        bias: ts._ts_cpp.CKKSVector,
+        dataset_id: str,
+    ) -> Tuple[ts._ts_cpp.CKKSVector, ts._ts_cpp.CKKSVector]:
+        """Make a single pass through the remote encrypted dataset and get back encrypted
+        parameter updates.
+
+        Args:
+            weights: encrypted vector of weights
+            bias: encrypted bias
+            dataset_id: id of the remote dataset to train on
+
+        Returns:
+            Tuple[ts._ts_cpp.CKKSVector, ts._ts_cpp.CKKSVector]: weights and bias update
+
+        Raises:
+            ConnectionError: if a connection can't be established with the API
+            ResourceNotFound: if the dataset identified with `dataset_id` can't be found
+            Answer418: if response.status_code is 418
+            ServerError: if response.status_code is 500
+        """
+
+        pass
+
     @staticmethod
     def _handle_error_response(response: requests.Response):
         """Handle the responses that aren't a success (200)"""
