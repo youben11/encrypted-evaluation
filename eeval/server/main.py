@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 from eeval.server.models import get_model, get_all_model_def, get_model_def
 from eeval.server.models.exceptions import *
 from eeval.server import storage
-from eeval.server import utils
 from base64 import b64encode, b64decode
 
 
@@ -61,17 +60,6 @@ class Context(BaseModel):
 
 class CKKSVectorWithContext(CKKSVector, Context):
     pass
-
-
-class LR(BaseModel):
-    dataset_id: str = Field(..., description="id of the dataset to train on")
-    weights: str = Field(..., description="Serialized weights")
-    bias: str = Field(..., description="Serialized bias")
-
-
-class LRUpdate(BaseModel):
-    weights_update: str = Field(..., description="Serialized weights update")
-    bias_update: str = Field(..., description="Serialized bias update")
 
 
 class Dataset(BaseModel):
@@ -243,37 +231,6 @@ async def get_dataset(dataset_id: str):
         "X": [b64encode(x) for x in X],
         "Y": [b64encode(y) for y in Y],
         "batch_size": batch_size,
-    }
-
-
-@app.post(
-    "/train-lr",
-    response_model=LRUpdate,
-    response_description="Updates of the weight and bias",
-)
-async def train_logistic_regression(lr: LR):
-    """Train a logistic regression model on an encrypted dataset and get parameters update"""
-
-    try:
-        ctx, X, Y, batch_size = storage.load_dataset(lr.dataset_id)
-    except KeyError:
-        return answer_404(f"No dataset with id {lr.dataset_id}")
-
-    try:
-        ser_weights = b64decode(lr.weights)
-        ser_bias = b64decode(lr.bias)
-    except:
-        return answer_418("bad base64 strings")
-
-    weights, bias = utils.load_lr(ctx, ser_weights, ser_bias)
-
-    weights_update, bias_update = utils.train_lr(weights, bias, X, Y, batch_size)
-    ser_weights_update = b64encode(weights_update.serialize())
-    ser_bias_update = b64encode(bias_update.serialize())
-
-    return {
-        "weights_update": ser_weights_update,
-        "bias_update": ser_bias_update,
     }
 
 
