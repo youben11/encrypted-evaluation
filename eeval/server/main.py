@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from eeval.server.models import get_model, get_all_model_def, get_model_def
 from eeval.server.models.exceptions import *
 from eeval.server import storage
+from eeval.server import utils
 from base64 import b64encode, b64decode
 
 
@@ -62,10 +63,24 @@ class CKKSVectorWithContext(CKKSVector, Context):
     pass
 
 
+class LR(BaseModel):
+    dataset_id: str = Field(..., description="id of the dataset to train on")
+    weights: str = Field(..., description="Serialized weights")
+    bias: str = Field(..., description="Serialized bias")
+
+
+class LRUpdate(BaseModel):
+    weights_update: str = Field(..., description="Serialized weights update")
+    bias_update: str = Field(..., description="Serialized bias update")
+
+
 class Dataset(BaseModel):
     context_id: str = Field(..., description="id of the context used with this dataset")
-    ckks_vectors: List[str] = Field(
-        ..., description="Serialized CKKSVectors representing the dataset entries"
+    X: List[str] = Field(
+        ..., description="Serialized CKKSVectors representing the data features"
+    )
+    Y: List[str] = Field(
+        ..., description="Serialized CKKSVectors representing the data labels"
     )
     batch_size: int = Field(1, min=1, description="Number of entries per CKKSVector")
 
@@ -199,14 +214,16 @@ async def register_dataset(data: Dataset):
     """Register a dataset and get a dataset_id to refer to it"""
     # decode data from client
     try:
-        dataset = []
-        for ckks_vector in data.ckks_vectors:
-            dataset.append(b64decode(ckks_vector))
+        enc_X = []
+        enc_Y = []
+        for x, y in zip(data.X, data.Y):
+            enc_X.append(b64decode(x))
+            enc_Y.append(b64decode(y))
     except:
         return answer_418("bad base64 strings")
 
     # TODO: try except possible exceptions
-    dataset_id = storage.save_dataset(data.context_id, dataset, data.batch_size)
+    dataset_id = storage.save_dataset(data.context_id, enc_X, enc_Y, data.batch_size)
     return {"dataset_id": dataset_id}
 
 
@@ -218,17 +235,46 @@ async def register_dataset(data: Dataset):
 async def get_dataset(dataset_id: str):
     """Get a previously registered dataset"""
     try:
-        ctx_id, dataset, batch_size = storage.get_raw_dataset(dataset_id)
+        ctx_id, X, Y, batch_size = storage.get_raw_dataset(dataset_id)
     except KeyError:
         return answer_404(f"No dataset with id {dataset_id}")
     return {
         "context_id": ctx_id,
-        "ckks_vectors": [b64encode(ckks_vector) for ckks_vector in dataset],
+        "X": [b64encode(x) for x in X],
+        "Y": [b64encode(y) for y in Y],
         "batch_size": batch_size,
     }
 
 
-# TODO: add a way to register a context and get a token to use later
+@app.post(
+    "/train-lr",
+    response_model=LRUpdate,
+    response_description="Updates of the weight and bias",
+)
+async def train_logistic_regression(lr: LR):
+    """Train a logistic regression model on an encrypted dataset and get parameters update"""
+
+    try:
+        ctx, X, Y, batch_size = storage.load_dataset(lr.dataset_id)
+    except KeyError:
+        return answer_404(f"No dataset with id {lr.dataset_id}")
+
+    try:
+        ser_weights = b64decode(lr.weights)
+        ser_bias = b64decode(lr.bias)
+    except:
+        return answer_418("bad base64 strings")
+
+    weights, bias = utils.load_lr(ctx, ser_weights, ser_bias)
+
+    weights_update, bias_update = utils.train_lr(weights, bias, X, Y, batch_size)
+    ser_weights_update = b64encode(weights_update.serialize())
+    ser_bias_update = b64encode(bias_update.serialize())
+
+    return {
+        "weights_update": ser_weights_update,
+        "bias_update": ser_bias_update,
+    }
 
 
 def start(host="127.0.0.1", port=8000):
