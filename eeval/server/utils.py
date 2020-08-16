@@ -39,5 +39,23 @@ def train_lr(
     Returns:
         Parameters update: weights_update and bias_update
     """
-    # TODO: actual training
-    return weights, bias
+    assert batch_size == 1, "Currently supports batch_size=1 only"
+    delta_weights = 0
+    delta_bias = 0
+    for x, y in zip(X, Y):
+        ## FORWARD
+        # linear layer
+        out = x.dot(weights) + bias
+        # sigmoid approximation
+        out.polyval_([0.5, 0.197, 0, -0.004])
+
+        ## BACKWARD
+        out_minus_y = out - y
+        delta_weights += x * out_minus_y
+        delta_bias += out_minus_y
+
+    # compute parameters update
+    delta_weights *= -1 / len(X)  # + weights * 0.05 regularization
+    delta_bias *= -1 / len(X)
+
+    return delta_weights, delta_bias
