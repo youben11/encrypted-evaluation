@@ -370,23 +370,33 @@ class Client:
         assert (
             len(weights) == n_features
         ), "weights size doesn't match the number of features"
-        size_with_pad = utils.next_pow2(n_features)
-        padd = [0] * (size_with_pad - n_features)
-        slots = 4096  # TODO: ctx.max_slots()
-        # this should be an int since both numbers should be a power of two
-        batch_size = slots // size_with_pad
-        # we will throw entries that doesn't constitute a full batch
-        n_batch = len(X) // batch_size
+
+        # BATCHED client implementation
+        # size_with_pad = utils.next_pow2(n_features)
+        # padd = [0] * (size_with_pad - n_features)
+        # slots = 4096  # TODO: ctx.max_slots()
+        # # this should be an int since both numbers should be a power of two
+        # batch_size = slots // size_with_pad
+        # # we will throw entries that doesn't constitute a full batch
+        # n_batch = len(X) // batch_size
+        # enc_X, enc_Y = [], []
+        # for i in range(n_batch):
+        #     # TODO: make sure X[i * batch_size + j] is of len n_features
+        #     # padd and batch
+        #     x = [X[i * batch_size + j] + padd for j in range(batch_size)]
+        #     y = [Y[i * batch_size + j] for j in range(batch_size)]
+        #     assert len(x) == batch_size * size_with_pad
+        #     enc_X.append(ts.ckks_vector(context, x))
+        #     assert len(y) == batch_size
+        #     enc_Y.append(ts.ckks_vector(context, y))
+
         enc_X, enc_Y = [], []
-        for i in range(n_batch):
-            # TODO: make sure X[i * batch_size + j] is of len n_features
-            # padd and batch
-            x = [X[i * batch_size + j] + padd for j in range(batch_size)]
-            y = [Y[i * batch_size + j] for j in range(batch_size)]
-            assert len(x) == batch_size * size_with_pad
+        batch_size = 1
+        padd = []
+        for x, y in zip(X, Y):
             enc_X.append(ts.ckks_vector(context, x))
-            assert len(y) == batch_size
-            enc_Y.append(ts.ckks_vector(context, y))
+            enc_Y.append(ts.ckks_vector(context, [y]))
+
 
         _, dataset_id = self.register_dataset(
             enc_X, enc_Y, context=context, batch_size=batch_size
