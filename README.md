@@ -111,7 +111,7 @@ $ pip install eeval
 
 ## Examples
 
-TBD
+Example applications can be found under [examples](./examples).
 
 ## License
 
